@@ -59,6 +59,32 @@ tempf2=sign(tempf).*fmax(abs(tempf)-lambda.thi/rho,0);
 F.new(2:frow,2:fcol)=tempf2;
 
 
+%solving nuclear norm regularized problem using soft-shrinkage
+function G.new=update_G(y,B,g,rho=0,lambda);
+G.new=B+g.gamma3/rho;
+%now update data the part G_{-0,-0}
+[grow,gcol]=size(G.new);
+tempg=G.new(2:grow,2:gcol);
+%apply svd to tempg,
+[u,s,v]=svd(tempg);
+v=v';
+grank=sum(s~=0,2);
+s=s(1:grank,1:grank);
+u=u(:,1:grank);
+v=v(1:grank,:);
+
+sdiag=diag(s);%vector
+sdiag=fmax(sdiag,lambda.four/rho);
+sdiag=diag(sdiag);%matrix
+
+G_0=u*sdiag*v;
+G.new(2:grow,2:gcol)=G_0;
+return G.new
+
+
+function H.new=update_H();
+
+
 
 %help function to generate W 
 function xz=outdot(x,z)
@@ -100,9 +126,12 @@ else
   coef=ret;
 end
 
-%help fun for update f
+%help fun for update f and g
 function ret= fmax(x,y);
 %x is a matrix ,y is a scalar
 resu=x<y;
 x(resu)=0;
 ret=x;
+
+
+
