@@ -9,7 +9,34 @@ w=generateW(x,z)
 
 % g.list 可以用结构体
 %update d e g 与原代码是相同的。
-function update_b();
+function X=update_b(w,y,B,matD,matE,matF,matG,matH,rho=0,g);
+%w is a n*(p1+1*p2+1) matrix ,n is the number of examples
+%convert D,E,F,G,H to p1+1 * p2+1 vector 
+[n,m]=size(w);
+[brow,bcol]=size(matD);
+vmatD=matD(:);
+vmatE=matE(:);
+vmatF=matF(:);
+vmatG=matG(:);
+vmatH=matH(:);
+vg.gamma1=g.gamma1(:);
+vg.gamma2=g.gamma2(:);
+vg.gamma3=g.gamma3(:);
+vg.gamma4=g.gamma4(:);
+vg.gamma5=g.gamma5(:);
+%solve B according to ||y-wx||^2 this formula x=(w^t*w)^{-1}w^t*y,so next construct y and w
+Y=y/sqrt(n);
+Y_down=(rho*(vmatD+vmatE+vmatF+vmatG+vmatH)-(vg.gamma1+vg.gamma2+vg.gamma3+vg.gamma4+vg.gamma5))/sqrt(5*rho);
+Y=[Y;Y_down];
+
+W=w/sqrt(n);
+W_down=sqrt(5*n)*ones(m,m);
+W=[W;W_down];
+X=inv(W'*W)*W'*Y
+%reshape in column order
+X=reshape(X,brow,bcol);
+
+
 
 
 %g.gama1,g.gama2,etc.
