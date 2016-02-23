@@ -1,14 +1,41 @@
 function  w=ADMMmat();
 %test set
-x=[1,2;3,4];
-z=[5,6;7,8];
-%产生的w中，main effects 和 interactions 的顺序是混合的
-w=generateW(x,z)
+%x=[1,2;3,4];
+%z=[5,6;7,8];
+%产生的w中，main effects ???interactions 的顺序是混合???%w=generateW(x,z)
+%可以用matVer这个代码来生成数据，暂时不用genereateW这个函数
+lambda.fir=0.01;
+lambda.sec=0.5;
+lambda.thi=0.99;
+lambda.four=0.2;%random
+%初始化的B是全???
+
+[B,wtr,wte,Ytr,Yte]=matVer();
+matD=B;
+matE=B;
+matF=B;
+matG=B;
+matH=B;
+%g.gamma ???拉格朗日乘子,这里都是与B大小相同的矩阵形???
+
+g.gamma1=B;
+g.gamma2=B;
+g.gamma3=B;
+g.gamma4=B;
+g.gamma5=B;
+
+rho=1;
 
 
+%Ĭ?ϲ?????Ҫ?ñ??ķ???
+iter=100;
+e.abs=1e-4;
+e.rel=1e-4;
+estimate(wtr,Ytr,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
 
 
-function estimate(w,y,lambda,rho,B,matD,matE,matF,matG,matH,g,iter=100,e.abs=1e-4,e.rel=1e-4);
+%参数w是wtr的这种矩阵形???
+function estimate(w,y,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
 
 for i=1:iter
     %uupdate each variable
@@ -63,7 +90,8 @@ for i=1:iter
             rho=2*rho;
         else if(r.norm*10<s.norm)
             rho=rho/2;
-        end
+              end
+         end
     end
 end
 %after iter k times ,just jump out the iteration
@@ -75,8 +103,8 @@ end
 
 
 % g.list 可以用结构体
-%update d e g 与原代码是相同的。
-function X=update_b(w,y,B,matD,matE,matF,matG,matH,rho=0,g);
+%update d e g 与原代码是相同的???
+function X=update_b(w,y,B,matD,matE,matF,matG,matH,rho,g);
 %w is a n*(p1+1*p2+1) matrix ,n is the number of examples
 %convert D,E,F,G,H to p1+1 * p2+1 vector 
 [n,m]=size(w);
@@ -107,30 +135,29 @@ X=reshape(X,brow,bcol);
 
 
 %g.gama1,g.gama2,etc.
-function D.new=update_D(B,w,rho=0,g,lambda);
+function Dnew=update_D(B,w,rho,g,lambda);
 D.new=B;
 brow=size(B,1);
 D.new(1,:)=B(1,:)+g.gamma1(1,:)/rho;
 newmat=B(2:brow,:)+g.gamma1(2:brow,:)/rho
-%求newmat 每一行的二范数
-
+%求newmat 每一行的二范???
 normmat=[];
 for i =1:size(newmat,1)
     normmat=[normmat;norm(newmat(i,:))];
 end
 %first para is a vector,so dot divide is necessary , and num subtract
 %vector is ok
-coef=pmax(1-(lambda.fir/rho)./normmat,0);
-%newmat 的每一行，乘上每一行的coef
+coef=pmax(1-(lambda.fir/rho)./normmat,0,true);
+%newmat 的每?????，乘上每?????的coef
 newmat2=bsxfun(@times,newmat,coef);
-D.new(2:brow)=newmat2;
+D.new(2:brow,:)=newmat2;
+Dnew=D.new;
 
 
-
-function E.new=update_E(B,w,rho=0,g,lambda);
+function Enew=update_E(B,w,rho,g,lambda);
 E.new=B;
 bcol=size(B,2);
-E.new(:,1)=B(:,1)+g.gamma2(1,:)/rho;
+E.new(:,1)=B(:,1)+g.gamma2(:,1)/rho;
 newmat=B(:,2:bcol)+g.gamma2(:,2:bcol)/rho;
 
 normat=[];
@@ -138,23 +165,23 @@ for i =1:size(newmat,2)
     normat=[normat,norm(newmat(:,i))];
 end
 %coef 行向量
-coef=pmax(1-(lambda.sec/rho)./newmat,0,false);
+coef=pmax(1-(lambda.sec/rho)./normat,0,false);
 newmat2=bsxfun(@times,newmat,coef);
 E.new(:,2:bcol)=newmat2;
+Enew=E.new;
 
-
-function F.new=update_F(w,B,g,rho=0,lambda);
-F.new=B+g.gamma3/rho
+function Fnew=update_F(B,w,rho,g,lambda);
+F.new=B+g.gamma3/rho;
 % now we take the part F_{-0,-0}
 [frow,fcol]=size(F.new);
 tempf=F.new(2:frow,2:fcol);
 %matrix - number is ok
 tempf2=sign(tempf).*fmax(abs(tempf)-lambda.thi/rho,0);
 F.new(2:frow,2:fcol)=tempf2;
-
+Fnew=F.new;
 
 %solving nuclear norm regularized problem using soft-shrinkage
-function G.new=update_G(y,B,g,rho=0,lambda);
+function Gnew=update_G(y,B,g,rho,lambda);
 G.new=B+g.gamma4/rho;
 %now update data the part G_{-0,-0}
 [grow,gcol]=size(G.new);
@@ -173,19 +200,20 @@ sdiag=diag(sdiag);%matrix
 
 G_0=u*sdiag*v;
 G.new(2:grow,2:gcol)=G_0;
-return G.new
+Gnew=G.new;
 
 
 %using gradient descent method
-function H.new=update_H(w,y,B,g,rho,lambda);
+function Hnew=update_H(w,y,B,g,rho,lambda);
 [meanfeat,uniqueY]=separateClasses(w,y);
 [numcls,numf]=size(meanfeat);
 diffmean=zeros(numcls-1,numf);
 k=1;
 for i =2:numcls
-    diffmean[k,:]=meanfeat(i,:)-meanfeat(i-1,:);
+    diffmean(k,:)=meanfeat(i,:)-meanfeat(i-1,:);
     k=k+1;
 end
+Hnew=gradientDescentH(diffmean,y,B,g,rho,lambda);
 
 
 
@@ -225,22 +253,22 @@ deri=zeros(lenH,1);
 for i =1:len
     z=diffmean(i,:)*H;
     if(z<=0)
-        deri=deri+(-1*diffmean');
+        deri=deri+(-1*diffmean(i,:)');   
     else if(z>0 & z<1 )
-        deri=deri+(diffmean'*(diffmean*H-1));
+        deri=deri+(diffmean(i,:)'*(diffmean(i,:)*H-1));
      end
  end
-
+end
 
 %update g.gamma
-function g.new=updategammas(w,B,matD,matE,matF,matG,matH,g,rho)
-g.new=g;
-g.new.gamma1=g.gamma1+rho*(B-matD);
-g.new.gamma2=g.gamma2+rho*(B-matE);
-g.new.gamma3=g.gamma3+rho*(B-matF);
-g.new.gamma4=g.gamma4+rho*(B-matG);
-g.new.gamma5=g.gamma5+rho*(B-matH);
-
+function gnew=updategammas(w,B,matD,matE,matF,matG,matH,g,rho);
+ g.new=g;
+ g.new.gamma1=g.gamma1+rho*(B-matD);
+ g.new.gamma2=g.gamma2+rho*(B-matE);
+ g.new.gamma3=g.gamma3+rho*(B-matF);
+ g.new.gamma4=g.gamma4+rho*(B-matG);
+ g.new.gamma5=g.gamma5+rho*(B-matH);
+ gnew=g.new;
 
 
 %help function to generate W 
@@ -263,7 +291,7 @@ z=[ones(zrow,1),z];
 w=outdot(x,z);
 
 %help fun for update d,x is a vector and y is a scalar
-function coef=pmax(x,y,isD=true)
+function coef=pmax(x,y,isD)
 if (isD==true)
 xrow=size(x,1);
 y=repmat(y,xrow,1);
@@ -301,11 +329,18 @@ numrealCls=length(uniqueY);
 %calculate the mean features of different classes
 %numclass is the number of different classes,cla is the class in ascending order 
 %note that numclasses can be zero due to the continuous number in cla
-[numclass,cla]=hist(Y);
-lencla=length(numclass);
+%[numclass,cla]=hist(Y);      hist may not work here 
+%lencla=length(numclass);
 
+%这个代码写的很好！！,不过没有考虑样本数为0的类
+d=diff([Y;max(Y)+1]);
+count=diff(find([1;d]));
+numclass=count;
+cla=Y(find(d));
+
+lencla=length(numclass);
 meanfeat=zeros(numrealCls,numfeat);
-startpos=1;
+startpos=1;     
 realClspos=1;
 for i =1:lencla;
     if(numclass(i,:)~=0);
@@ -333,3 +368,4 @@ while(1)
  end
  B=x_best;
 
+            
