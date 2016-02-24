@@ -1,4 +1,4 @@
-function  w=ADMMmat();
+function  [ratotest,rato,B,matD,matE,matF,matG,matH]  =ADMMmat();
 %test set
 %x=[1,2;3,4];
 %z=[5,6;7,8];
@@ -8,9 +8,13 @@ lambda.fir=0.01;
 lambda.sec=0.5;
 lambda.thi=0.99;
 lambda.four=0.2;%random
-%初始化的B是全???
+%初始化的B是全0
 
+%synthesis data 
 [B,wtr,wte,Ytr,Yte]=matVer();
+
+%load real world data
+[B,wtr,wte,Ytr,Yte]=loadData();
 matD=B;
 matE=B;
 matF=B;
@@ -23,19 +27,20 @@ g.gamma2=B;
 g.gamma3=B;
 g.gamma4=B;
 g.gamma5=B;
-
+    
 rho=1;
 
 
-%Ĭ?ϲ?????Ҫ?ñ??ķ???
+
 iter=100;
 e.abs=1e-4;
 e.rel=1e-4;
-estimate(wtr,Ytr,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
-
+[B,matD,matE,matF,matG,matH]=estimate(wtr,Ytr,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
+rato=mypredict(wtr,B,Ytr);
+ratotest=mypredict(wte,B,Yte);
 
 %参数w是wtr的这种矩阵形???
-function estimate(w,y,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
+function [B,matD,matE,matF,matG,matH]=estimate(w,y,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
 
 for i=1:iter
     %uupdate each variable
@@ -127,7 +132,7 @@ Y=[Y;Y_down];
 W=w/sqrt(n);
 W_down=sqrt(5*n)*ones(m,m);
 W=[W;W_down];
-X=inv(W'*W)*W'*Y
+X=pinv(W'*W)*W'*Y
 %reshape in column order
 X=reshape(X,brow,bcol);
 
@@ -139,7 +144,7 @@ function Dnew=update_D(B,w,rho,g,lambda);
 D.new=B;
 brow=size(B,1);
 D.new(1,:)=B(1,:)+g.gamma1(1,:)/rho;
-newmat=B(2:brow,:)+g.gamma1(2:brow,:)/rho
+newmat=B(2:brow,:)+g.gamma1(2:brow,:)/rho;
 %求newmat 每一行的二范???
 normmat=[];
 for i =1:size(newmat,1)
@@ -164,7 +169,7 @@ normat=[];
 for i =1:size(newmat,2)
     normat=[normat,norm(newmat(:,i))];
 end
-%coef 行向量
+%coef 行
 coef=pmax(1-(lambda.sec/rho)./normat,0,false);
 newmat2=bsxfun(@times,newmat,coef);
 E.new(:,2:bcol)=newmat2;
@@ -298,7 +303,7 @@ y=repmat(y,xrow,1);
 resu=x>y;
 ret=x;
 ret(resu,:)=x(resu,:);
-ret(~resu,:)=y(~resu,:)
+ret(~resu,:)=y(~resu,:);
 coef=ret;
 
 else 

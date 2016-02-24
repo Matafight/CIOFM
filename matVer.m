@@ -7,7 +7,6 @@ Ztr=randn(100,15);
 Xte=randn(100,10);
 Zte=randn(100,15);
 
-%éœ?¦æ ‡å‡†åŒ?
 
 %generate full matrix of covariates
 wtr=[];
