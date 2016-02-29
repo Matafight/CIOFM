@@ -82,7 +82,7 @@ for i=1:iter
     crit2=norm(vg)*e.rel+sqrt(brow*bcol)*e.abs;
 
     if(r.norm<crit1 & s.norm<crit2)
-        %return 
+        return 
     else
         B=newB;
         matD=newmatD;
@@ -192,6 +192,7 @@ G.new=B+g.gamma4/rho;
 [grow,gcol]=size(G.new);
 tempg=G.new(2:grow,2:gcol);
 %apply svd to tempg,
+%tempg=u*s*v'
 [u,s,v]=svd(tempg);
 v=v';
 grank=sum(s~=0,2);
