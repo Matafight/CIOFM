@@ -1,4 +1,4 @@
-function  [ratotest,rato,B,matD,matE,matF,matG,matH]  =ADMMmat();
+function  [ratotest,rato,B,matD,matE,matF,matG,matH]  =ADMMmat(edata);
 %test set
 %x=[1,2;3,4];
 %z=[5,6;7,8];
@@ -11,16 +11,16 @@ lambda.four=0.2;%random
 %初始化的B是全0
 
 %synthesis data 
-[B,wtr,wte,Ytr,Yte]=matVer();
+%[B,wtr,wte,Ytr,Yte,dataname]=matVer();
 
 %load real world data
-[B,wtr,wte,Ytr,Yte]=loadData();
+[B,wtr,wte,Ytr,Yte,dataname]=loadData(edata);
 matD=B;
 matE=B;
 matF=B;
 matG=B;
 matH=B;
-%g.gamma ???拉格朗日乘子,这里都是与B大小相同的矩阵形???
+%g.gamma 拉格朗日乘子,这里都是.与B大小相同的矩阵形???
 
 g.gamma1=B;
 g.gamma2=B;
@@ -28,7 +28,7 @@ g.gamma3=B;
 g.gamma4=B;
 g.gamma5=B;
     
-rho=1;
+rho=1;  
 
 
 
@@ -38,6 +38,17 @@ e.rel=1e-4;
 [B,matD,matE,matF,matG,matH]=estimate(wtr,Ytr,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
 rato=mypredict(wtr,B,Ytr);
 ratotest=mypredict(wte,B,Yte);
+saveResult(rato,ratotest,dataname);
+
+
+function saveResult(rato,ratotest,dataname)
+    fs=fopen('result.txt','at');
+    fprintf(fs,'%s\n',dataname)
+    fprintf(fs,'%f\n',rato);
+    fprintf(fs,'%f\n',ratotest);
+    fclose(fs);
+
+
 
 %参数w是wtr的这种矩阵形???
 function [B,matD,matE,matF,matG,matH]=estimate(w,y,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
@@ -45,12 +56,12 @@ function [B,matD,matE,matF,matG,matH]=estimate(w,y,lambda,rho,B,matD,matE,matF,m
 for i=1:iter
     %uupdate each variable
     newB=update_b(w,y,B,matD,matE,matF,matG,matH,rho,g);
-    newmatD=update_D(B,w,rho,g,lambda);
-    newmatE=update_E(B,w,rho,g,lambda);
-    newmatF=update_F(B,w,rho,g,lambda);
-    newmatG=update_G(y,B,g,rho,lambda);
-    newmatH=update_H(w,y,B,g,rho,lambda);
-    newg=updategammas(w,B,matD,matE,matF,matG,matH,g,rho);
+    newmatD=update_D(newB,w,rho,g,lambda);
+    newmatE=update_E(newB,w,rho,g,lambda);
+    newmatF=update_F(newB,w,rho,g,lambda);
+    newmatG=update_G(y,newB,g,rho,lambda);
+    newmatH=update_H(w,y,newB,g,rho,lambda);
+    newg=updategammas(w,newB,newmatD,newmatE,newmatF,newmatG,newmatH,g,rho);
     
 
     %dual resudual s
@@ -82,6 +93,13 @@ for i=1:iter
     crit2=norm(vg)*e.rel+sqrt(brow*bcol)*e.abs;
 
     if(r.norm<crit1 & s.norm<crit2)
+        B=newB;
+        matD=newmatD;
+        matE=newmatE;
+        matF=newmatF;
+        matG=newmatG;
+        matH=newmatH;
+        g=newg;
         return 
     else
         B=newB;
@@ -91,6 +109,7 @@ for i=1:iter
         matG=newmatG;
         matH=newmatH;
         g=newg;
+        %update rho
         if(r.norm>10*s.norm)
             rho=2*rho;
         else if(r.norm*10<s.norm)
@@ -102,6 +121,19 @@ end
 %after iter k times ,just jump out the iteration
 
 %return
+
+
+
+
+
+function  update_b2(w,y,B,matD,matE,matF,matG,matH,rho,g);
+
+[u,s,v]=svd(w);
+v=v';
+grank=sum(sum(s~=0,2));
+s=s(1:grank,1:grank);
+u=u(:,1:grank);
+v=v(1:grank,:);
 
 
 
@@ -132,7 +164,10 @@ Y=[Y;Y_down];
 W=w/sqrt(n);
 W_down=sqrt(5*n)*ones(m,m);
 W=[W;W_down];
+%this inverse in time consuming
 X=pinv(W'*W)*W'*Y
+%X=gradientDescentB(Y,W);
+
 %reshape in column order
 X=reshape(X,brow,bcol);
 
@@ -195,7 +230,7 @@ tempg=G.new(2:grow,2:gcol);
 %tempg=u*s*v'
 [u,s,v]=svd(tempg);
 v=v';
-grank=sum(s~=0,2);
+grank=sum(sum(s~=0,2));
 s=s(1:grank,1:grank);
 u=u(:,1:grank);
 v=v(1:grank,:);
@@ -234,7 +269,10 @@ H_old=zeros(hrow,1);
 epsilon=0.0003;
 gamma=0.0001;
 iterk=0;
-while(1)
+H_best=H_old;
+%may can't jump out this loop,better set a iteration time
+iterset=1000;
+for it=1:iterset
     firderi=rho*(H_old-(vB+vg.gamma5/rho));
     fullderi=firderi+gradientHingeLoss(diffmean,H_old);
     H_new=H_old-gamma*fullderi;
@@ -243,6 +281,7 @@ while(1)
         break;
     end
     H_old=H_new;
+    H_best=H_old;%if don't have this line then after iteration H_best would not have been assigned
     iterk=iterk+1;
 end
 H=H_best;
@@ -363,14 +402,16 @@ epsilon = 0.0003;
 gamma=0.0001;
 x_old=zeros(size(W,2),1);
 iterk=0;
-while(1)
+siter=100;
+for it=1:100
     x_new=x_old-gamma*(W'*W*x_old-W'*Y);
     if(norm(x_new-x_old)<epsilon)
         x_best=x_new;
         break;
      end
      x_old=x_new;
-     iterk=iter+1;
+     x_best=x_old;
+     iterk=iterk+1;
  end
  B=x_best;
 

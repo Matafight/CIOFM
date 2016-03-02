@@ -1,12 +1,15 @@
-function [B,wtr,wte,Ytr,Yte]=loadData();
+function [B,wtr,wte,Ytr,Yte,dataname]=loadData(data);
 
-data=load('diabetes.data.ord');
+%data=load('diabetes.data.ord');
+%global machine;
+
+dataname='ImageData';
 [datam,datan]=size(data);
 
 newindex=randperm(datam);
 data=data(newindex,:);
 
-trlen=datam*0.7;
+trlen=round(datam*0.7);
 telen=datam-trlen;
 
 Xtr=data(1:trlen,1:datan-1);

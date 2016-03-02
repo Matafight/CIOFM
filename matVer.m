@@ -1,4 +1,4 @@
-function  [B,wtr,wte,Y_high_SHtr,Y_high_SHte]=matVer();
+function  [B,wtr,wte,Y_high_SHtr,Y_high_SHte,dataname]=matVer();
 %this is the function that generate both training and testing data
 %生成数据,X and Z
 Xtr=randn(100,10);
@@ -34,6 +34,7 @@ B_high_SH(1:6,1:6)=1;
 [m,n]=size(B_high_SH);
 Y_high_SHtr =wtr*reshape(B_high_SH,m*n,1)+randn(100,1);
 Y_high_SHte =wte*reshape(B_high_SH,m*n,1)+randn(100,1);
+dataname='syndata'
 
 
 
