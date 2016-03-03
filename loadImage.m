@@ -6,7 +6,7 @@ dirOutput=dir(fullfile(fileFolder,'*'));
 fileNames={dirOutput.name}';
 
 
-Imf=fopen('ImageFile.txt','at');
+Imf=fopen('ImageFileGrey32.txt','at');
 
 len=length(fileNames);
 
@@ -20,13 +20,19 @@ for i = 1:len;
         
          ynum=str2num(fileNames{i}(5))*10+str2num(fileNames{i}(6));
          imdata=imread(['/home/guo/桌面/ordinal dataset/FG-NET/Images/',fileNames{i}]);
-         lev=graythresh(imdata);
-         bwimg=im2bw(imdata,lev);
-         %t3=bwimg(2,1)
-         newimg=imresize(bwimg,[16,16]);
+         %lev=graythresh(imdata);
+         %bwimg=im2bw(imdata,lev);
          
-         for row=1:16
-             for col=1:16   
+         if(length(size(imdata))==3)
+            bwimg=rgb2gray(imdata);
+         else
+             bwimg=imdata;
+         end
+         %t3=bwimg(2,1)
+         newimg=imresize(bwimg,[32,32]);
+         
+         for row=1:32
+             for col=1:32   
                  fprintf(Imf,'%d ',newimg(row,col));
              end
          end

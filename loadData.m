@@ -3,7 +3,7 @@ function [B,wtr,wte,Ytr,Yte,dataname]=loadData(data);
 %data=load('diabetes.data.ord');
 %global machine;
 
-dataname='ImageData';
+dataname='whiteWine';
 [datam,datan]=size(data);
 
 newindex=randperm(datam);
@@ -17,7 +17,9 @@ Ytr=data(1:trlen,datan);
 Xte=data(trlen+1:datam,1:datan-1);
 Yte=data(trlen+1:datam,datan);
 
-%generate full matrix of covariates
+%we need normalization
+%Xtr=zscore(Xtr);
+%%generate full matrix of covariates
 wtr=[];
 wte=[];
 [m,n]=size(Xtr);
@@ -33,4 +35,7 @@ for  i=1:n+1
    wte=[wte,X2(:,j).*X2(:,i)];
     end
 end
+
+
+
 

@@ -8,6 +8,7 @@ lambda.fir=0.01;
 lambda.sec=0.5;
 lambda.thi=0.99;
 lambda.four=0.2;%random
+lambda.fif=0.2;
 %初始化的B是全0
 
 %synthesis data 
@@ -35,7 +36,17 @@ rho=1;
 iter=100;
 e.abs=1e-4;
 e.rel=1e-4;
-[B,matD,matE,matF,matG,matH]=estimate(wtr,Ytr,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
+
+[u,s,v]=svd(wtr,'econ');
+grank=sum(sum(s~=0,2));
+s=s(1:grank,1:grank);
+u=u(:,1:grank);
+v=v(:,1:grank);
+svdw.s=s;
+svdw.u=u;
+svdw.v=v;
+
+[B,matD,matE,matF,matG,matH]=estimate(svdw,wtr,Ytr,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
 rato=mypredict(wtr,B,Ytr);
 ratotest=mypredict(wte,B,Yte);
 saveResult(rato,ratotest,dataname);
@@ -51,11 +62,12 @@ function saveResult(rato,ratotest,dataname)
 
 
 %参数w是wtr的这种矩阵形???
-function [B,matD,matE,matF,matG,matH]=estimate(w,y,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
+function [B,matD,matE,matF,matG,matH]=estimate(svdw,w,y,lambda,rho,B,matD,matE,matF,matG,matH,g,iter,e);
 
 for i=1:iter
     %uupdate each variable
-    newB=update_b(w,y,B,matD,matE,matF,matG,matH,rho,g);
+    %不用每一步都做svd分解！！！
+    newB=update_b2(svdw,y,B,matD,matE,matF,matG,matH,rho,g);
     newmatD=update_D(newB,w,rho,g,lambda);
     newmatE=update_E(newB,w,rho,g,lambda);
     newmatF=update_F(newB,w,rho,g,lambda);
@@ -126,16 +138,43 @@ end
 
 
 
-function  update_b2(w,y,B,matD,matE,matF,matG,matH,rho,g);
+function  bnew=update_b2(svdw,y,B,matD,matE,matF,matG,matH,rho,g);
 
-[u,s,v]=svd(w);
-v=v';
-grank=sum(sum(s~=0,2));
-s=s(1:grank,1:grank);
-u=u(:,1:grank);
-v=v(1:grank,:);
+[brow,bcol]=size(matD);
+u=svdw.u;
+s=svdw.s;
+v=svdw.v;
 
 
+sver=diag(s);
+m=size(y,1);
+firpart=s'*u'*y;
+tempver=sver.^2./(sver.^2+5*rho*m);
+tempdiag=diag(tempver);
+firpart=firpart-tempdiag*firpart;
+firpart=(v*firpart)/(5*rho*m);
+
+
+vmatD=matD(:);
+vmatE=matE(:);
+vmatF=matF(:);
+vmatG=matG(:);
+vmatH=matH(:);
+vg.gamma1=g.gamma1(:);
+vg.gamma2=g.gamma2(:);
+vg.gamma3=g.gamma3(:);
+vg.gamma4=g.gamma4(:);
+vg.gamma5=g.gamma5(:);
+
+bigexp=(rho*(vmatD+vmatE+vmatF+vmatG+vmatH)-(vg.gamma1+vg.gamma2+vg.gamma3+vg.gamma4+vg.gamma5));
+secpart=v'*bigexp;
+
+secpart=tempdiag*secpart;
+secpart=v*secpart;
+secpart=(bigexp-secpart)/(5*rho);
+
+bnew=firpart+secpart;
+bnew=reshape(bnew,brow,bcol);
 
 
 
@@ -177,7 +216,7 @@ X=reshape(X,brow,bcol);
 %g.gama1,g.gama2,etc.
 function Dnew=update_D(B,w,rho,g,lambda);
 D.new=B;
-brow=size(B,1);
+[brow,bcol]=size(B);
 D.new(1,:)=B(1,:)+g.gamma1(1,:)/rho;
 newmat=B(2:brow,:)+g.gamma1(2:brow,:)/rho;
 %求newmat 每一行的二范???
@@ -189,6 +228,7 @@ end
 %vector is ok
 coef=pmax(1-(lambda.fir/rho)./normmat,0,true);
 %newmat 的每?????，乘上每?????的coef
+%newmat2=newmat.*repmat(coef,1,bcol);
 newmat2=bsxfun(@times,newmat,coef);
 D.new(2:brow,:)=newmat2;
 Dnew=D.new;
@@ -271,10 +311,10 @@ gamma=0.0001;
 iterk=0;
 H_best=H_old;
 %may can't jump out this loop,better set a iteration time
-iterset=1000;
+iterset=2000;
 for it=1:iterset
     firderi=rho*(H_old-(vB+vg.gamma5/rho));
-    fullderi=firderi+gradientHingeLoss(diffmean,H_old);
+    fullderi=firderi+lambda.fif*gradientHingeLoss(diffmean,H_old);
     H_new=H_old-gamma*fullderi;
     if(norm(H_new-H_old)<epsilon)
         H_best=H_new;
